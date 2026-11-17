@@ -1,6 +1,7 @@
 #include "mapping.hpp"
 #include "cost.hpp"
 #include <algorithm>
+#include <cassert>
 #include <climits>
 #include <stdexcept>
 #include <iostream>
@@ -104,10 +105,28 @@ std::vector<int> greedyMapping(const CommMatrix& comm, const DistMatrix& dist, s
     return map;
 }
 
-void improveBySwaps(const CommMatrix& comm, const DistMatrix& dist, std::vector<int>& mapping) {
+static long long swapDelta(const CommMatrix& comm, const DistMatrix& dist, const std::vector<int>& mapping, std::size_t a, std::size_t b) {
+    int sa = mapping[a];
+    int sb = mapping[b];
+
+    long long sum = 0;
+    for (std::size_t k = 0; k < comm.size(); k++) {
+        if (k == a || k == b) {continue;}
+        int sk = mapping[k];
+        long long w_ak = comm[a][k] + comm[k][a];
+        long long w_bk = comm[b][k] + comm[k][b];
+        sum += (w_ak - w_bk) * (dist[sb][sk] - dist[sa][sk]);
+    }
+
+    return sum;
+}
+
+// Original version: recomputes the full O(n^2) cost for every trial swap.
+// Kept as a reference for correctness tests and benchmarks.
+void improveBySwapsNaive(const CommMatrix& comm, const DistMatrix& dist, std::vector<int>& mapping) {
     long long currentCost = cost(comm, dist, mapping);
     bool improved = true;
- 
+
     while (improved) {
         improved = false;
         for (std::size_t i = 0; i < mapping.size(); i++) {
@@ -123,6 +142,28 @@ void improveBySwaps(const CommMatrix& comm, const DistMatrix& dist, std::vector<
             }
         }
     }
+}
+
+// Fast version: computes only the change in cost of a swap, O(n) instead of O(n^2).
+void improveBySwaps(const CommMatrix& comm, const DistMatrix& dist, std::vector<int>& mapping) {
+    long long currentCost = cost(comm, dist, mapping);
+    bool improved = true;
+
+    while (improved) {
+        improved = false;
+        for (std::size_t i = 0; i < mapping.size(); i++) {
+            for (std::size_t j = i + 1; j < mapping.size(); j++) {
+                long long d = swapDelta(comm, dist, mapping, i, j);
+                if (d < 0) {
+                    std::swap(mapping[i], mapping[j]);
+                    currentCost += d;
+                    improved = true;
+                }
+            }
+        }
+    }
+
+    assert(currentCost == cost(comm, dist, mapping));
 }
 
 std::vector<int> bestOfRestarts(const CommMatrix& comm, const DistMatrix& dist,

@@ -5,3 +5,7 @@ compile_commands.json
 # Editor / OS
 .vscode/
 .DS_Store
+
+# Generated benchmark data
+bench_data/
+tools/

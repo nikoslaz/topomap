@@ -22,3 +22,12 @@ target_include_directories(topo_io PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 add_executable(topomap app/main.cpp)
 target_link_libraries(topomap PRIVATE topo_io)
 target_compile_definitions(topomap PRIVATE TESTS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests")
+
+enable_testing()
+add_executable(unit_tests tests/unit_tests.cpp)
+target_link_libraries(unit_tests PRIVATE topo_io)
+target_compile_definitions(unit_tests PRIVATE TESTS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests")
+add_test(NAME unit_tests COMMAND unit_tests)
+
+add_executable(bench app/bench.cpp)
+target_link_libraries(bench PRIVATE topo_io)
